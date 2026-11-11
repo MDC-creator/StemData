@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-24.04
     container: python:3.12-slim-bookworm
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install
         run: |
           pip install -q https://github.com/glencoesoftware/zeroc-ice-py-linux-x86_64/releases/download/20240202/zeroc_ice-3.6.5-cp312-cp312-manylinux_2_28_x86_64.whl
@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-24.04
     container: node:22.23.3-alpine
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Type check and build
         working-directory: frontend
         run: |
