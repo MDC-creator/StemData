@@ -31,8 +31,7 @@ Research data is **not** part of this repository.
                      └─────────────────────────────────────────────────────────────────┘
 ```
 
-Design decisions, data flow, the analysis method and its limits: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-Status and next steps: [ROADMAP.md](ROADMAP.md).
+Design decisions, data flow and the analysis method: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Tech stack
 
