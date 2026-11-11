@@ -1,0 +1,145 @@
+# Local stand-ins for the services the lab will host (OMERO, Nextcloud, eLabFTW).
+# Our own app does NOT live here — it only talks to these services through their APIs,
+# exactly as it will later talk to the real lab servers.
+#
+# Start:  docker compose -f infra/dev-stack/compose.yaml up -d
+# Stop:   docker compose -f infra/dev-stack/compose.yaml down        (data is kept in volumes)
+# Reset:  docker compose -f infra/dev-stack/compose.yaml down -v     (deletes all data!)
+
+name: ${STEMCHUB_PROJECT:-stemcdatahub}-devstack
+
+services:
+  # ---------- OMERO (image server) — based on github.com/ome/docker-example-omero ----------
+  omero-db:
+    image: postgres:16.15
+    environment:
+      POSTGRES_USER: omero
+      POSTGRES_DB: omero
+      POSTGRES_PASSWORD: ${OMERO_DB_PASSWORD}
+    volumes:
+      - omero-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U omero -d omero"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [lab]
+
+  omero-server:
+    image: openmicroscopy/omero-server:5.6.18
+    depends_on:
+      omero-db:
+        condition: service_healthy
+    environment:
+      CONFIG_omero_db_host: omero-db
+      CONFIG_omero_db_user: omero
+      CONFIG_omero_db_pass: ${OMERO_DB_PASSWORD}
+      CONFIG_omero_db_name: omero
+      ROOTPASS: ${OMERO_ROOT_PASSWORD}
+    ports:
+      - "127.0.0.1:4063:4063"   # this computer only
+      - "127.0.0.1:4064:4064"   # this computer only
+    volumes:
+      - omero-data:/OMERO
+      - ../../data/sample:/data/sample:ro   # sample .czi files, for import tests
+    ulimits:
+      nofile:
+        soft: 8192
+        hard: 65536
+    networks: [lab]
+
+  omero-web:
+    image: openmicroscopy/omero-web-standalone:5.33.2
+    depends_on: [omero-server]
+    environment:
+      OMEROHOST: omero-server
+    ports:
+      - "127.0.0.1:4080:4080"   # this computer only
+    networks: [lab]
+
+  # ---------- Nextcloud (shared files) ----------
+  nextcloud:
+    image: nextcloud:34.0.5-apache
+    environment:
+      SQLITE_DATABASE: nextcloud            # SQLite is fine for local testing
+      NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER}
+      NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
+      NEXTCLOUD_TRUSTED_DOMAINS: "localhost nextcloud"
+    ports:
+      - "127.0.0.1:8081:80"   # this computer only
+    volumes:
+      - nextcloud-data:/var/www/html
+    networks: [lab]
+
+  # ---------- eLabFTW (lab notebook) — based on get.elabftw.net/?config (v6) ----------
+  elabftw-db:
+    image: mysql:8.4.11
+    environment:
+      MYSQL_ROOT_PASSWORD: ${ELAB_DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: elabftw
+      MYSQL_USER: elabftw
+      MYSQL_PASSWORD: ${ELAB_DB_PASSWORD}
+      TZ: Europe/Berlin
+    healthcheck:
+      test: "/usr/bin/mysql --user=$$MYSQL_USER --password=$$MYSQL_PASSWORD --execute 'SHOW DATABASES;'"
+      interval: 5s
+      timeout: 5s
+      retries: 42
+    volumes:
+      - elabftw-db:/var/lib/mysql
+    networks: [lab]
+
+  # one-shot: the upload volumes are created owned by root; eLabFTW runs as uid 1000
+  elabftw-init:
+    image: elabftw/elabimg:6.0.8
+    user: "0:0"
+    entrypoint: ["sh", "-c", "chown -R 1000:1000 /var/lib/elabftw/uploads /var/lib/elabftw/exports"]
+    volumes:
+      - elabftw-uploads:/var/lib/elabftw/uploads
+      - elabftw-exports:/var/lib/elabftw/exports
+    restart: "no"
+
+  elabftw:
+    image: elabftw/elabimg:6.0.8
+    user: "1000:1000"            # eLabFTW 6 must run as a non-root user
+    read_only: true
+    tmpfs:
+      - /run:mode=755,uid=1000,gid=1000,exec,nosuid,nodev,size=64m
+      - /var/cache/elabftw:mode=755,uid=1000,gid=1000,size=256m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    depends_on:
+      elabftw-db:
+        condition: service_healthy
+      elabftw-init:
+        condition: service_completed_successfully
+    environment:
+      DB_HOST: elabftw-db
+      DB_PORT: "3306"
+      DB_NAME: elabftw
+      DB_USER: elabftw
+      DB_PASSWORD: ${ELAB_DB_PASSWORD}
+      SECRET_KEY: ${ELAB_SECRET_KEY}
+      SITE_URL: https://localhost:8443
+      GENERATE_TLS_CERT: "true"             # self-signed cert, local testing only
+      PHP_TIMEZONE: Europe/Berlin
+      TZ: Europe/Berlin
+    ports:
+      - "127.0.0.1:8443:8080"   # this computer only
+    volumes:
+      - elabftw-uploads:/var/lib/elabftw/uploads
+      - elabftw-exports:/var/lib/elabftw/exports
+    networks: [lab]
+
+networks:
+  lab:
+    name: ${STEMCHUB_PROJECT:-stemcdatahub}-lab   # our app joins this network to reach the services by name
+
+volumes:
+  omero-db:
+  omero-data:
+  nextcloud-data:
+  elabftw-db:
+  elabftw-uploads:
+  elabftw-exports:

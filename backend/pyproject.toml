@@ -1,0 +1,20 @@
+[project]
+name = "stemchub"
+version = "0.1.0"
+description = "StemCDataHub backend: API, worker, connectors to OMERO, Nextcloud and eLabFTW"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q -p no:cacheprovider"
+filterwarnings = ["ignore:Using `httpx` with `starlette.testclient`"]
+
+[tool.ruff]
+line-length = 130
+target-version = "py312"
+cache-dir = "/tmp/ruff-cache"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["B008"]  # FastAPI's Depends() in defaults

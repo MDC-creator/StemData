@@ -1,0 +1,24 @@
+# TEMPLATE — scripts/setup.sh fills in the __PLACEHOLDERS__ with random values and writes
+# elabftw-populate.local.yml (git-ignored). LOCAL DEVELOPMENT ONLY: creates the team INDUZELL,
+# a sysadmin with an API key (used by our app) and a regular lab user.
+# Applying it drops and recreates the eLabFTW database.
+skip_confirm: true
+generate_random_experiments: false
+generate_random_resources: false
+teams:
+  - name: INDUZELL
+    random_users: 0
+    users:
+      - email: dev@stemchub.local
+        password: __ELAB_DEV_PASSWORD__
+        firstname: Dev
+        lastname: Sysadmin
+        api_key: __ELAB_API_KEY__
+        create_experiments: false
+        create_items: false
+      - email: lab@stemchub.local
+        password: __ELAB_LAB_PASSWORD__
+        firstname: Lab
+        lastname: Scientist
+        create_experiments: false
+        create_items: false

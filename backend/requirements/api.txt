@@ -1,0 +1,14 @@
+# shared by api and worker (omero-py also needs zeroc-ice, installed from a prebuilt wheel in the Dockerfile)
+fastapi==0.142.2
+uvicorn[standard]==0.54.0
+sqlalchemy==2.1.3
+psycopg[binary]==3.3.6
+pydantic-settings==2.15.0
+celery[redis]==5.6.3
+httpx==0.28.1
+python-multipart==0.0.32  # file uploads (FastAPI forms)
+omero-py==5.23.0
+numpy==2.0.2  # cellpose 3.1 requires numpy<2.1; keep api and worker identical
+scipy==1.18.1
+scikit-image==0.26.0
+pillow==12.3.0

@@ -1,0 +1,80 @@
+# StemCDataHub — our own app.
+#   web (React UI, :8090)  ->  api (FastAPI, :8000)  ->  db (PostgreSQL), redis (queue)  <-  worker (Celery + Cellpose)
+# api and worker also join the network of the dev stack (infra/dev-stack) to reach OMERO, Nextcloud, eLabFTW.
+# In production, only the addresses in .env change; this file stays the same.
+#
+# Start:  docker compose up -d --build          (start infra/dev-stack first for local testing)
+# Tests:  docker compose run --rm api pytest
+
+name: ${STEMCHUB_PROJECT:-stemcdatahub}
+
+x-backend-env: &backend-env
+  env_file: .env
+  environment:
+    DATABASE_URL: postgresql+psycopg://stemchub:${APP_DB_PASSWORD}@db:5432/stemchub
+    REDIS_URL: redis://redis:6379/0
+    CACHE_DIR: /cache
+
+services:
+  db:
+    image: postgres:16.15
+    environment:
+      POSTGRES_USER: stemchub
+      POSTGRES_DB: stemchub
+      POSTGRES_PASSWORD: ${APP_DB_PASSWORD}
+    volumes:
+      - appdb:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stemchub -d stemchub"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7.4.11
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: { context: backend, target: api }
+    image: stemchub-api:dev
+    <<: *backend-env
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    volumes:
+      - cache:/cache
+      - ./data/sample:/data/sample:ro   # only used by the demo seed script
+    ports:
+      - "127.0.0.1:8000:8000"   # this computer only
+    networks: [default, lab]
+
+  worker:
+    build: { context: backend, target: worker }
+    image: stemchub-worker:dev
+    <<: *backend-env
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    volumes:
+      - cache:/cache
+    networks: [default, lab]
+
+  web:
+    build: { context: frontend }
+    image: stemchub-web:dev
+    depends_on: [api]
+    ports:
+      - "127.0.0.1:8090:80"   # this computer only
+
+networks:
+  lab:
+    external: true
+    name: ${STEMCHUB_PROJECT:-stemcdatahub}-lab   # created by infra/dev-stack
+
+volumes:
+  appdb:
+  cache:

@@ -1,0 +1,33 @@
+# secrets and per-computer setup state
+.env
+*.env
+!*.env.example
+infra/dev-stack/elabftw-populate.local.yml
+.setup/
+
+# research data — never commit images or exports (only data/sample/README.md is tracked)
+data/*
+!data/sample/
+data/sample/*
+!data/sample/README.md
+*.czi
+*.ome.tif
+*.ome.tiff
+*.zarr/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# node
+node_modules/
+dist/
+*.tsbuildinfo
+
+# editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
